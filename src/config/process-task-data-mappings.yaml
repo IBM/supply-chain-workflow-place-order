@@ -1,0 +1,77 @@
+#
+#  (C) Copyright 2021 IBM Corporation.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+'Create or update work item system task':
+  input:
+    # the workitem object which to be updated.
+    - workItem: tw.local.workItem
+    # log variable is a list to store logs info.
+    - logs: tw.local.logs
+    # use to check after mutation status, whether workitem status is match current status.
+    - currentStatus: tw.local.simplifiedRequestForm.status
+    # store workitem id.
+  output:
+    # store workitem id for further use. 
+    - workItemId: tw.local.queryLocationAndPartNumberGQLOutput
+    - logs: tw.local.logs
+    # a flag to show whether status update successful or not, didUpdateWorkItem = true means successful.
+    - didUpdateWorkItem: tw.local.didUpdateWorkItem
+
+
+'Submit request user task':
+  input:
+    # pre-populate request form info.
+    - requestForm: tw.local.requestForm
+    - logs: tw.local.logs
+  output:
+    # full request form info which requestor submit.
+    - requestForm: tw.local.requestForm
+    - logs: tw.local.logs
+
+
+'Send request notice email system task':
+  input:
+    # full request form info which requestor submit.
+    - requestForm: tw.local.requestForm
+  output:
+    # full request form info which requestor submit.
+    - requestForm: tw.local.requestForm
+    # a flag to show whether notice email has been send, true means successfully.
+    - didSendEmailNotification: tw.local.didSendEmailNotification
+
+
+'Request review user task':
+  input:
+    # full request form info which requestor submit.
+    - requestForm: tw.local.requestForm
+  output:
+    # request form info after approver give their decision.
+    - requestForm: tw.local.requestForm 
+
+
+'Update work item system task':
+  input:
+    # the workitem object which to be updated 
+    - workItem: tw.local.workItem
+    # log variable is a list to store logs info
+    - logs: tw.local.logs
+    # use to check after mutation status, whether workitem status is match current status.
+    - currentStatus: tw.local.simplifiedRequestForm.status
+    # store workitem id
+  output:
+    - logs: tw.local.logs
+    # a flag to show whether status update successful or not, didUpdateWorkItem = true means successful.
+    - didUpdateWorkItem: tw.local.didUpdateWorkItem

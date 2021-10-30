@@ -1,0 +1,12 @@
+{
+  "name": "supply-chain-workflow-place-order",
+  "description": "A sample Place Order workflow for IBM Sterling Supply Chain Intelligence Suite",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "scripts": {
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+  }
+}
