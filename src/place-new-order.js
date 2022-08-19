@@ -1,18 +1,22 @@
-/**
- * (C) Copyright 2021 IBM Corporation.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* (C) Copyright 2022 IBM Corporation.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+  
+  http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+*/
+
+/* eslint-disable block-scoped-var, no-eq-null, no-unused-vars, no-undef, func-style, no-var */
+
+// following content with 'require' only can be added in git repo file, pls remove it on workflow js file
+const tw = require('./test/unit/mock-tw.js');
+
 
 // GQL - get location info and product info
 var queryLocationAndProductInfoByInventoryIdGQL = '{ \
@@ -84,9 +88,9 @@ function isValidJson(json) {
   }
 }
 
-// initial payload for create new workitem
-function getWorkItemCreateJsonString() {
-  writeLog('operation', 'create new workitem');
+// initial payload for create actionTaken
+function getActionTakenCreateJsonString() {
+  writeLog('operation', 'create actionTaken');
   var body = {
     actionDefinition: {
       id: tw.local.workItem.businessObject.actionDefinition.id
@@ -94,8 +98,24 @@ function getWorkItemCreateJsonString() {
     additionalInfo: [
       {
         name: additionalInfoName,
-        value: tw.system.currentProcessInstance.id
+        value: tw.system.currentProcessInstance.id,
+        type: 'STRING'
       }
+    ],
+    status: tw.local.currentStatus,
+    tenantId: tw.local.workItem.businessObject.tenantId,
+    userAssigned: tw.local.workItem.businessObject.userAssigned
+  };
+  tw.local.actionTakenBody = JSON.stringify(body);
+  writeLog('actionTakenBody', tw.local.actionTakenBody);
+}
+
+// initial payload for create new workitem
+function getWorkItemCreateJsonString() {
+  writeLog('operation', 'create new workitem');
+  var body = {
+    actionsTaken: [
+      { id: tw.local.actionTakenId }    
     ],
     businessObject: {
       id: tw.local.workItem.businessObject.businessObject.id,
@@ -115,9 +135,50 @@ function getWorkItemCreateJsonString() {
   writeLog('workItemBody', tw.local.workItemBody);
 }
 
+// initial payload for update actionTaken
+function getActionTakenUpdateJsonString() {
+  writeLog('operation', 'update actionTaken');
+  var body = {
+    additionalInfo: [
+      {
+        name: 'WFID',
+        value: tw.system.currentProcessInstance.id,
+        type: 'STRING'
+      }
+    ],
+    status: tw.local.currentStatus,
+    tenantId: tw.local.workItem.businessObject.tenantId
+  };
+  tw.local.actionTakenBody = JSON.stringify(body);
+  writeLog('actionTaken id', tw.local.actionTakenId);
+  writeLog('actionTakenBody', tw.local.actionTakenBody);
+}
+
 // initial payload for update existing workitem
 function getWorkItemUpdateJsonString() {
   writeLog('operation', 'update existing workitem');
+  var newActionTaken = { id:tw.local.actionTakenId };
+  if(tw.local.workItem.businessObject.actionsTaken) 
+    tw.local.workItem.businessObject.actionsTaken
+      [tw.local.workItem.businessObject.actionsTaken.listLength] = newActionTaken;
+  
+  else {
+    tw.local.workItem.businessObject.actionsTaken = [];
+    tw.local.workItem.businessObject.actionsTaken[0] = newActionTaken;
+  }
+  var body = {    
+    status: tw.local.currentStatus,
+    tenantId: tw.local.workItem.businessObject.tenantId,
+    actionsTaken: tw.local.workItem.businessObject.actionsTaken
+  };
+  tw.local.workItemBody = JSON.stringify(body);
+  writeLog('existing workitem id', tw.local.workItem.businessObject.id);
+  writeLog('workItemBody', tw.local.workItemBody);
+}
+
+// initial payload for update work item status
+function getWorkItemStatusUpdateJsonString() {
+  writeLog('operation', 'update work item status');
   var body = {
     additionalInfo: [
       {
@@ -129,6 +190,7 @@ function getWorkItemUpdateJsonString() {
     tenantId: tw.local.workItem.businessObject.tenantId
   };
   tw.local.workItemBody = JSON.stringify(body);
+  writeLog('existing workitem id', tw.local.workItem.businessObject.id);
   writeLog('workItemBody', tw.local.workItemBody);
 }
 
@@ -148,7 +210,7 @@ function setUpWorkItemId() {
     }
   }
   catch (e) {
-    writeLog('error', 'setUpWorkItemId');
+    writeLog('error', 'setUpWorkItemId' + e);
   }
 }
 
@@ -165,7 +227,19 @@ function validUpdateWorkItem() {
     writeLog('didUpdateWorkItem', tw.local.didUpdateWorkItem);
   }
   catch(e) {
-    writeLog('error', 'validUpdateWorkItem');
+    writeError('validUpdateWorkItem:' + e);
+  }
+}
+
+// check whether update successfully
+function validUpdateActionTaken() {
+  writeLog('operation', 'valid update actionTaken');
+  try{
+    var result = JSON.parse(tw.local.actionTakenOutput);
+    writeLog('didUpdateActionTaken', result.id);
+  }
+  catch(e) {
+    writeError('validUpdateActionTaken');
   }
 }
 
@@ -231,5 +305,9 @@ module.exports = {
   getWorkItemCreateJsonString,
   getWorkItemUpdateJsonString,
   setUpWorkItemId,
-  validUpdateWorkItem
+  validUpdateWorkItem,
+  getActionTakenCreateJsonString,
+  getActionTakenUpdateJsonString,
+  getWorkItemStatusUpdateJsonString,
+  validUpdateActionTaken
 };
