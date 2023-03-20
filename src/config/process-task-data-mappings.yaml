@@ -1,4 +1,4 @@
-# (C) Copyright 2022 IBM Corporation.
+# (C) Copyright 2023 IBM Corporation.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'Create or update work item system task':
+'"Create or update work item and initialize form" system task':
   input:
     # the workitem object which to be updated.
     - workItem: tw.local.workItem
@@ -20,30 +20,54 @@
     # use to check after mutation status, whether workitem status is match current status.
     - currentStatus: tw.local.simplifiedRequestForm.status
     # store workitem id.
+    # pre-populate request form info.
+    - requestForm: tw.local.requestForm
   output:
-    # store workitem id for further use. 
-    - workItemId: tw.local.queryLocationAndPartNumberGQLOutput
+    # store workitem info which contains workitem id for other task uses. 
+    - workItem: tw.local.workItem
+    # a flag to show whether status update success or not, when flag = true means successful.
+    - didUpdateWorkItem: tw.local.didUpdateWorkItem    
+    # a list to store logs info.
     - logs: tw.local.logs
-    # a flag to show whether status update successful or not, didUpdateWorkItem = true means successful.
-    - didUpdateWorkItem: tw.local.didUpdateWorkItem
+    # id of the action taken object that is created or updated
     - actionTakenId: tw.local.actionTakenId
+    # full request form info which requestor submit.
+    - requestForm: tw.local.requestForm
 
 
-'Submit request user task':
+'"Submit request" user task':
   input:
     # pre-populate request form info.
     - requestForm: tw.local.requestForm
+    # a list to store logs info.
     - logs: tw.local.logs
   output:
     # full request form info which requestor submit.
     - requestForm: tw.local.requestForm
+    # a list to store logs info.
     - logs: tw.local.logs
+  pre-assignments:
+    # set the form updated timestamp
+    - tw.local.requestForm.updateOn: new Date()
+    # set the groupId into requestForm to be used for adding user into a specific group
+    - tw.local.requestForm.groupId: tw.local.workItem.businessObject.groupId
 
-
-'Send request notice email system task':
+'"Add user and group" system task':
   input:
     # full request form info which requestor submit.
     - requestForm: tw.local.requestForm
+  output:
+    # full request form info which requestor submit.
+    - requestForm: tw.local.requestForm
+    # a flag to indicate if the location manager exists in BAW or external user.
+    - check_if_user_exists: tw.local.check_if_user_exists
+
+'"Send request notice email" system task':
+  input:
+    # full request form info which requestor submit.
+    - requestForm: tw.local.requestForm
+    # a flag to indicate if the location manager exists in BAW or external user.
+    - check_if_user_exists: tw.local.check_if_user_exists
   output:
     # full request form info which requestor submit.
     - requestForm: tw.local.requestForm
@@ -51,16 +75,17 @@
     - didSendEmailNotification: tw.local.didSendEmailNotification
 
 
-'Request review user task':
+'"Request review" user task':
   input:
     # full request form info which requestor submit.
     - requestForm: tw.local.requestForm
   output:
     # request form info after approver give their decision.
     - requestForm: tw.local.requestForm 
+  pre-assignments: |
+    tw.local.currentStatus = "resolutionPending";
 
-
-'Update work item system task':
+'"Update work item" system task':
   input:
     # the workitem object which to be updated 
     - workItem: tw.local.workItem
@@ -68,8 +93,10 @@
     - logs: tw.local.logs
     # use to check after mutation status, whether workitem status is match current status.
     - currentStatus: tw.local.simplifiedRequestForm.status
-    # store workitem id
+    # id of the associated action taken object
+    - actionTakenId: tw.local.actionTakenId
   output:
+    # a list to store logs info.
     - logs: tw.local.logs
     # a flag to show whether status update successful or not, didUpdateWorkItem = true means successful.
     - didUpdateWorkItem: tw.local.didUpdateWorkItem

@@ -1,4 +1,4 @@
-# (C) Copyright 2022 IBM Corporation.
+# (C) Copyright 2023 IBM Corporation.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,14 +14,20 @@
 # data mapping for service flows of place new order workflow
 '"Create or update work item" service flow':
   'Create action taken':
-    input: 
+    input:
       # tenantId info as param to call sync api.
-      - infoHubTentantId: tw.local.workItem.businessObject.tenantId
-      # workitem object info as payload to new a workitem.
+      - infoHubTenantId: tw.local.workItem.businessObject.tenantId
+      # actionTaken object info as payload to new a workitem.
       - actionTakenBody: tw.local.actionTakenBody
     output:
-      # result after new a workitem, it's workitem id info.
+      # result after new a actionTaken
       - createResult: tw.local.actionTakenOutput
+    pre-execution script: |
+      // load the GQL script to create actionTaken
+      getActionTakenCreateJsonString();
+    post-execution script: |
+      // set the actionTakenId from GQL response
+      tw.local.actionTakenId = JSON.parse(tw.local.actionTakenOutput).id;
 
   'Create work item':
     input: 
@@ -32,6 +38,12 @@
     output:
       # result after new a workitem, it's workitem id info.
       - createResult: tw.local.workItemOutput
+    pre-execution script: |
+      // load the GQL script to create a work item.
+      getWorkItemCreateJsonString();
+    post-execution script: |
+      // set the work item id from GQL response to local variable.
+      setUpWorkItemId();      
 
   'Update work item':
     input: 
@@ -44,25 +56,119 @@
     output:
       # result after update a workitem, it's workitem id info.
       - updateResult: tw.local.workItemOutput
+    pre-execution script: |
+      // load the POST body to call API to update a work item.
+      getWorkItemUpdateJsonString();
+    post-execution script: |
+      // verify if the work item is updated.
+      validUpdateWorkItem();      
 
-'"Get inventory info" service flow':
-  'get by inventory id': 
+  'Get inventory info': 
     input:
       # tenantId info as param to execute GQL.
-      - infoHubTentantId: tw.local.tenantId
+      - infoHubTentantId: tw.local.workItem.businessObject.tenantId
       # GQL statement for query location and product info by inventory id.
-      - gqlBody: tw.local.queryLocationAndPartNumberGQL
+      - gqlBody: tw.local.queryLocationAndProductInfoByInventoryIdGQL
     output:
       # GQL query result.
-      - gqlResult: tw.local.queryLocationAndPartNumberGQLOutput
+      - gqlResult: tw.local.queryLocationAndProductInfoByInventoryIdGQLOutput
+    pre-execution script: |
+      // load the GQL script for querying the product info by part number.
+      queryLocationAndProductInfoByInventoryId();
+    post-execution script: |
+      // set up GQL response to the form variables.
+      initializeRequestForm();
+
+'"Add user and group" service flow':
+  'Check if user exists in BAW':
+    input:
+      # user id
+      - user_id: tw.local.requestForm.buyer.email
+    output:
+      # put the check result into the local variable.
+      - user_exists: tw.local.check_if_user_exists
+  'Add or update user':
+    input:
+      # user id
+      - user_id: tw.local.requestForm.buyer.email
+      # user information (JSON structured)
+      - user_information: tw.local.user_information
+    output:
+      # put the check result into the local variable.
+      - user_exists: tw.local.check_if_user_exists
+    pre-execution script: |
+      // set to user_information to post to BAW
+      tw.local.user_information = "{\"user_id\": \"" + tw.local.requestForm.buyer.email + "\""+
+      ",\"email\":\"" + tw.local.requestForm.buyer.email + "\""+
+      ",\"details\":{\"preferred_language\":\"en\"},"+
+      "\"groups\":[{\"name\":\""+ tw.local.requestForm.groupId +"\",\"base_dn\":\"cn=groups,O=IBM,C=US\"}]}";
+  'Users and User groups synchronization':
+    input:
+      # users are to be synchronized.
+      - user_array: tw.local.user_array_for_sync
+      # groups are to be synchronized.
+      - group_array: tw.local.group_array_for_sync
+    output:
+      # check if users sync operation is invoked successfully
+      - user_sync_result: tw.local.user_sync_result
+      # returning users sync operation final result
+      - check_user_sync_result: tw.local.check_user_sync
+      # check if groups sync operation is invoked successfully
+      - group_sync_result: tw.local.group_sync_result
+      # returning groups sync operation final result
+      - check_group_sync_result: tw.local.check_group_sync
+    pre-execution script: |
+      // set to user_array_for_sync to post to BAW
+      tw.local.user_array_for_sync = "[\""+tw.local.requestForm.buyer.email+"\"]";
+      tw.local.group_array_for_sync = "[\""+tw.local.requestForm.groupId+"\"]";
 
 
 '"Send request notice email" service flow':
   'Send email':
     input: 
       # comma separated list of email addresses of the To recipients.
-      - sendTo: tw.local.requestForm.nodeManagerInfo.email
+      - sendTo: tw.local.requestForm.buyer.email
       # The body of the email.
       - emailBody: tw.local.emailBody
       # the subject of the email.
       - emailSubject: tw.local.emailSubject
+    post-execution script: |
+      // indicates if the email is sent.
+      tw.local.didSendEmailNotification = true
+
+'"Update work item status" service flow':
+  'Update action taken':
+    input: 
+      # tenantId info as param to call sync api.
+      - infoHubTenantId: tw.local.workItem.businessObject.tenantId
+      # workitem id info to indicate which actionTaken should be updated.
+      - actionTakenId: tw.local.actionTakenId
+      # payload info used to update actionTaken's status.
+      - actionTakenBody: tw.local.actionTakenBody
+    output:
+      # result after update actionTaken
+      - updateResult: tw.local.actionTakenOutput
+    pre-execution script: |
+      // set up the POST body to call API to update the action taken.
+      getActionTakenUpdateJsonString();
+    post-execution script: |
+      // set the API response.
+      validUpdateActionTaken();
+
+  'Update workitem status':
+    input: 
+      # tenantId info as param to call sync api.
+      - infoHubTenantId: tw.local.workItem.businessObject.tenantId
+      # workitem id info to indicate which workitem should be updated.
+      - workItemId: tw.local.workItem.businessObject.id
+      # payload info used to update workitem's status.
+      - workItemBody: tw.local.workItemBody
+    output:
+      # result after update a workitem, it's workitem id info.
+      - updateResult: tw.local.workItemOutput
+    pre-execution script: |
+      // set up the POST body to call API to update the work item.
+      getWorkItemUpdateJsonString();
+    post-execution script: |
+      // verify if the work item is updated.
+      validUpdateWorkItem();
